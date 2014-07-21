@@ -1,0 +1,82 @@
+# mongo client note
+# http://docs.mongodb.org/manual/tutorial/query-documents/
+
+var c  = db.aip.find({"id" : "info:fda/E70ZXZJEL_FNZBHA"});
+var myDoc = c.hasNext() ? c.next() : null;
+myDoc
+c.hasNext()
+myDoc = c.next()
+
+# retrieve the document with the datafiles.original filter in the subdocument
+var d  = db.aip.find({'datafiles.original_path' : 'sip-files/28319_288_00018.jp2'});
+
+# use aggregate to retrieve the subdocument
+var e = db.aip.aggregate(
+  {$unwind: "$datafiles"}, 
+  {$match: {"datafiles.original_path":'sip-files/28319_288_00018.jp2'}}, 
+  {$group: {_id: "$_id", datafiles: {$push:"$datafiles"}}}
+);
+
+# using regular expression with aggregate, 
+var reg = RegExp('^sip');
+var e = db.aip.aggregate( 
+  {$unwind: "$datafiles"}, 
+  {$match:{"datafiles.original_path":{$regex: reg}}}, 
+  {$group: {_id: "$_id", datafiles: {$push:"$datafiles"}}}
+);
+
+# using regular expression with aggregate, filter by 'jp2' files
+var reg = RegExp('jp2');
+var e = db.aip.aggregate( 
+  {$unwind: "$datafiles"}, 
+  {$match:{"datafiles.original_path":{$regex: reg}}}, 
+  {$group: {_id: "$_id", datafiles: {$push:"$datafiles"}}}
+);
+
+
+
+#postgres json note
+jsontest=# select * from books;
+ id |                                                    data                                                     
+----+-------------------------------------------------------------------------------------------------------------
+  1 | { "name": "Book the First", "author": { "first_name": "Bob", "last_name": "White" } }
+  2 | { "name": "Book the Second", "author": { "first_name": "Megan", "last_name": "Hess" } }
+  3 | { "name": "Book the Second", "publisher": { "name": "New York Times", "address": "1100 Main street USA" } }
+(3 rows)
+
+jsontest=# select * from books where (data#>'{publisher,name}') is not NULL;
+ id |                                                    data                                                     
+----+-------------------------------------------------------------------------------------------------------------
+  3 | { "name": "Book the Second", "publisher": { "name": "New York Times", "address": "1100 Main street USA" } }
+(1 row)
+
+jsontest=# select * from books where (data#>'{author}') is not NULL;
+ id |                                          data                                           
+----+-----------------------------------------------------------------------------------------
+  1 | { "name": "Book the First", "author": { "first_name": "Bob", "last_name": "White" } }
+  2 | { "name": "Book the Second", "author": { "first_name": "Megan", "last_name": "Hess" } }
+(2 rows)
+
+jsontest=# select data ->> 'author' from books;
+                    ?column?                    
+------------------------------------------------
+ { "first_name": "Bob", "last_name": "White" }
+ { "first_name": "Megan", "last_name": "Hess" }
+ 
+(3 rows)
+
+jsontest=# select data ->> 'publisher' from books;
+                            ?column?                             
+-----------------------------------------------------------------
+ 
+ 
+ { "name": "New York Times", "address": "1100 Main street USA" }
+(3 rows)
+
+jsontest=# select data from books where (data#>>'{author,last_name}')='White';
+                                         data                                          
+---------------------------------------------------------------------------------------
+ { "name": "Book the First", "author": { "first_name": "Bob", "last_name": "White" } }
+(1 row)
+
+
